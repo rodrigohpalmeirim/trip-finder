@@ -26,3 +26,22 @@ node build/
 ```sh
 npm run dev
 ```
+
+### Docker
+
+#### Command
+```sh
+docker run --name trip-finder --pull always -d -p 3000:3000 --restart unless-stopped ghcr.io/rodrigohpalmeirim/trip-finder:main
+```
+
+#### Docker Compose
+```yaml
+version: "3.3"
+services:
+  trip-finder:
+    image: ghcr.io/rodrigohpalmeirim/trip-finder:main
+    container_name: trip-finder
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+```
