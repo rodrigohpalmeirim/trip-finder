@@ -7,13 +7,14 @@
     let trips = [], airports = {}, airportOptions;
     let from, to;
     let origins, destinations, minDuration = 5, maxDuration = 10, carryOnBag = false, stops = 0, firstDepartureDate, lastArrivalDate;
-    let hoveredTrip, hovering, loading, grabbing;
+    let hoveredTrip, hovering, loading, grabbing, error;
 
     $: if (!firstDepartureDate) firstDepartureDate = new Date().toISOString().split("T")[0];
     $: if (!lastArrivalDate) lastArrivalDate = new Date(new Date().getTime() + 1209600000).toISOString().split("T")[0];
     
-    $: if ((origins?.length || destinations?.length) && !grabbing) {
+    $: if (origins?.length && destinations?.length && !grabbing) {
         loading = true;
+        error = null;
         const inputs = JSON.stringify({ origins, destinations, firstDepartureDate, lastArrivalDate, minDuration, maxDuration, carryOnBag, stops });
         fetch("/api/trips", {
             method: "POST",
@@ -21,27 +22,42 @@
                 "Content-Type": "application/json",
             },
             body: inputs,
-        }).then((res) => res.json()).then((results) => {
+        }).then(async (res) => {
+            const results = await res.json();
+            if (!res.ok) throw new Error(results.error || "Trip search failed");
+            return results;
+        }).then((results) => {
             if (inputs == JSON.stringify({ origins, destinations, firstDepartureDate, lastArrivalDate, minDuration, maxDuration, carryOnBag, stops })) {
                 trips = results;
                 loading = false;
             }
+        }).catch((cause) => {
+            if (inputs == JSON.stringify({ origins, destinations, firstDepartureDate, lastArrivalDate, minDuration, maxDuration, carryOnBag, stops })) {
+                trips = [];
+                error = cause.message;
+                loading = false;
+            }
         });
-    };
+    }
 
     $: if (from || to) {
         const query = from || to;
-        fetch(`/api/airports?query=${query}`).then((res) => res.json()).then((results) => {
+        fetch(`/api/airports?query=${encodeURIComponent(query)}`).then(async (res) => {
+            if (!res.ok) throw new Error("Airport search failed");
+            return res.json();
+        }).then((results) => {
             if (query == (from || to)) {
                 airportOptions = results;
                 for (const airport in results) {
                     airports[airport] = results[airport];
                 }
             }
+        }).catch(() => {
+            if (query == (from || to)) airportOptions = {};
         });
-    };
+    }
 
-    const parseDate = (date) => new Date(date.replace("(\d{2})/|-(\d{2})/|-(\d{4})", "$3-$2-$1"));
+    const parseDate = (date) => new Date(date);
     const daysBetween = (date1, date2) => Math.round(Math.abs((parseDate(date2) - parseDate(date1)) / 86400000));
 </script>
 
@@ -141,7 +157,7 @@
                 {/each}
             {:else if !loading}
                 <div class="flex justify-center items-center h-full">
-                    <span>No results found</span>
+                    <span>{error || "No results found"}</span>
                 </div>
             {/if}
         </div>
