@@ -45,3 +45,7 @@ services:
       - 3000:3000
     restart: unless-stopped
 ```
+
+## License
+
+[GPL-3.0-or-later](LICENSE)
